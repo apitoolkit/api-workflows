@@ -1,4 +1,3 @@
-
 use fantoccini::{Client, Locator};
 use serde::{Deserialize, Serialize};
 use std::{fs, time::Duration};
