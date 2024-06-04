@@ -1,6 +1,9 @@
 pub mod base_cli;
+pub mod base_browser;
 pub mod base_request;
+
 use anyhow::Ok;
+use base_browser::TestCase;
 use base_cli::Commands;
 use base_request::TestContext;
 use clap::Parser;
@@ -31,11 +34,18 @@ async fn main() {
 
     match cli_instance.command {
         None | Some(Commands::App {}) => {}
-        Some(Commands::Test { file }) => cli(file).await.unwrap(),
+        Some(Commands::Test { file, api, browser }) => {
+            if api {
+                cli_api(file.clone()).await.unwrap();
+            }
+            if browser {
+                cli_browser(file).await.unwrap();
+            }
+        }
     }
 }
 
-async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
+async fn cli_api(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
     match file_op {
         Some(file) => {
             let content = fs::read_to_string(file.clone())?;
@@ -61,6 +71,27 @@ async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
             Ok(())
         }
     }
+}
+
+async fn cli_browser(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
+    match file_op {
+        Some(file) => {
+            let content = fs::read_to_string(file.clone()).expect("Unable to read file");
+            let test_cases: Vec<TestCase> =
+                serde_yaml::from_str(&content).expect("Unable to parse YAML");
+            let _ = base_browser::run_browser_tests(&test_cases).await?;
+        }
+        None => {
+            let files = find_tk_yaml_files(Path::new("."));
+            for file in files {
+                let content = fs::read_to_string(file.clone()).expect("Unable to read file");
+                let test_cases: Vec<TestCase> =
+                    serde_yaml::from_str(&content).expect("Unable to parse YAML");
+                base_browser::run_browser_tests(&test_cases).await?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn find_tk_yaml_files(dir: &Path) -> Vec<PathBuf> {
