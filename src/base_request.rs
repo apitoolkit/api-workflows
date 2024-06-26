@@ -6,7 +6,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use serde_with::{serde_as};
+use serde_with::serde_as;
 use std::{collections::HashMap, env, env::VarError};
 use thiserror::Error;
 

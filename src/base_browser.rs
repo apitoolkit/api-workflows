@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use thirtyfour::prelude::*;
 use thirtyfour::DesiredCapabilities;
 
-
 #[derive(Deserialize, Serialize, Debug)]
 pub struct TestStep {
     visit: Option<String>,
@@ -59,14 +58,13 @@ pub async fn run_browser(
     test_cases: &Vec<TestItem>,
     should_log: bool,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
-
     let mut driver = None;
 
     // Find the metadata to configure the browser
     for (i, item) in test_cases.iter().enumerate() {
         if let Some(metadata) = &item.metadata {
             log::debug!("running on : {:?}", metadata.browser);
-    
+
             driver = match &metadata.browser {
                 Some(browser_str) => {
                     let caps = match browser_str.as_str() {
@@ -77,9 +75,12 @@ pub async fn run_browser(
                                 caps.set_headless()?;
                             }
                             caps
-                        },
+                        }
                         _ => {
-                            println!("Unrecognized browser '{}', defaulting to Firefox", browser_str);
+                            println!(
+                                "Unrecognized browser '{}', defaulting to Firefox",
+                                browser_str
+                            );
                             let mut caps = DesiredCapabilities::firefox();
                             if metadata.headless.unwrap_or(false) {
                                 caps.set_headless()?;
@@ -87,9 +88,9 @@ pub async fn run_browser(
                             caps
                         }
                     };
-    
+
                     Some(WebDriver::new("http://localhost:4444", caps).await?)
-                },
+                }
                 None => {
                     println!("No browser specified, defaulting to Firefox");
                     let mut caps = DesiredCapabilities::firefox();
@@ -99,22 +100,20 @@ pub async fn run_browser(
                     Some(WebDriver::new("http://localhost:4444", caps).await?)
                 }
             };
-    
+
             break;
         }
     }
-    
+
     if driver.is_none() {
         log::debug!("No driver configuration found in metadata");
     }
-    
-    let driver = driver.unwrap();
 
+    let driver = driver.unwrap();
 
     let mut all_results = Vec::new();
 
     for test_case in test_cases {
-
         let result = base_browser(test_case, driver.clone()).await;
         match result {
             Ok(mut res) => {
@@ -156,7 +155,6 @@ pub async fn base_browser(
                 if let Some(text) = &step.type_text {
                     element.send_keys(text).await?;
                 }
-
             }
             if let Some(xpath) = &step.find_xpath {
                 let element = client.find(By::XPath(xpath)).await?;
