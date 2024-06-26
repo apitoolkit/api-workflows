@@ -3,7 +3,7 @@ pub mod base_browser;
 pub mod base_request;
 
 use anyhow::Ok;
-use base_browser::TestCase;
+use base_browser::TestItem;
 use base_cli::Commands;
 use base_request::TestContext;
 use clap::Parser;
@@ -77,17 +77,17 @@ async fn cli_browser(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
     match file_op {
         Some(file) => {
             let content = fs::read_to_string(file.clone()).expect("Unable to read file");
-            let test_cases: Vec<TestCase> =
+            let test_cases: Vec<TestItem> =
                 serde_yaml::from_str(&content).expect("Unable to parse YAML");
-            let _ = base_browser::run_browser_tests(&test_cases).await?;
+            let _ = base_browser::run_browser(&test_cases, true).await;
         }
         None => {
             let files = find_tk_yaml_files(Path::new("."));
             for file in files {
                 let content = fs::read_to_string(file.clone()).expect("Unable to read file");
-                let test_cases: Vec<TestCase> =
+                let test_cases: Vec<TestItem> =
                     serde_yaml::from_str(&content).expect("Unable to parse YAML");
-                base_browser::run_browser_tests(&test_cases).await?;
+                base_browser::run_browser(&test_cases, true).await;
             }
         }
     }
