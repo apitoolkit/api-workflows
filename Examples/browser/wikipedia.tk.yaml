@@ -1,0 +1,21 @@
+- metadata:
+    name: Visit Wikipedia
+    description: test wikipedia
+    headless: false
+    browser: safari
+  groups:
+    - group: Visit Wikipedia
+      steps:
+        - visit: 'https://www.wikipedia.org/'
+        - wait: 2000
+        - find: '#searchInput'
+          click: true
+        - find: '#searchInput'
+          type_text: 'Selenium (software)'
+        - wait: 1000
+        - find: '.pure-button-primary-progressive'
+          click: true
+        - wait: 2000
+        - find: '#ca-viewsource'
+          click: true
+        - wait: 2000
