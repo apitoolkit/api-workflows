@@ -244,9 +244,15 @@ enum MultiValueAssertionStrategy {
 
 fn parse_type_and_strategy(value_type: &str) -> (&str, MultiValueAssertionStrategy) {
     if value_type.ends_with("All") {
-        (&value_type[..value_type.len() - 3], MultiValueAssertionStrategy::AllMustMatch)
+        (
+            &value_type[..value_type.len() - 3],
+            MultiValueAssertionStrategy::AllMustMatch,
+        )
     } else if value_type.ends_with("Any") {
-        (&value_type[..value_type.len() - 3], MultiValueAssertionStrategy::AnyCanMatch)
+        (
+            &value_type[..value_type.len() - 3],
+            MultiValueAssertionStrategy::AnyCanMatch,
+        )
     } else {
         (value_type, MultiValueAssertionStrategy::AllMustMatch)
     }
@@ -335,7 +341,10 @@ pub async fn base_request(
     }
     for (i, test_item) in test_items.iter().enumerate() {
         // Use iterations if provided; otherwise use a single iteration.
-        let iterations = test_item.iterations.clone().unwrap_or_else(|| vec![HashMap::new()]);
+        let iterations = test_item
+            .iterations
+            .clone()
+            .unwrap_or_else(|| vec![HashMap::new()]);
         for (iter_index, params) in iterations.into_iter().enumerate() {
             let mut iter_ctx = ctx.clone();
             for (k, v) in params.iter() {
@@ -344,12 +353,10 @@ pub async fn base_request(
                     .unwrap()
                     .insert(k.to_string(), Value::String(v.clone()));
             }
-            iter_ctx.step = Some(Arc::new(
-                test_item
-                    .title
-                    .clone()
-                    .unwrap_or_else(|| format!("Step {} (iter {})", i, iter_index)),
-            ));
+            iter_ctx.step =
+                Some(Arc::new(test_item.title.clone().unwrap_or_else(|| {
+                    format!("Step {} (iter {})", i, iter_index)
+                })));
             iter_ctx.step_index = i as u32;
             let mut client = reqwest::Client::builder().connection_verbose(true);
             if let Some(version) = test_item.request.http_version.clone() {
@@ -393,7 +400,11 @@ pub async fn base_request(
                         log::info!(target: "testkit", "Pre-request hook result: {}", hook_result);
                     }
                 }
-                let url = format_url(&iter_ctx, &test_item.request.http_method.get_url(), &exports_map);
+                let url = format_url(
+                    &iter_ctx,
+                    &test_item.request.http_method.get_url(),
+                    &exports_map,
+                );
                 let method = test_item.request.http_method.get_method();
                 let mut request_builder = client.request(method, url.clone());
                 request_builder = request_builder.header("X-Testkit-Run", "true");
@@ -431,7 +442,8 @@ pub async fn base_request(
                         Value::String(s) => s.clone(),
                         _ => json.to_string(),
                     };
-                    let j_string = prepare_json_body(js_string, &exports_map, &mut step_result, should_log);
+                    let j_string =
+                        prepare_json_body(js_string, &exports_map, &mut step_result, should_log);
                     request_builder = request_builder.header("Content-Type", "application/json");
                     if let Ok(json) = serde_json::from_str::<Value>(&j_string) {
                         request_builder = request_builder.json(&json);
@@ -508,18 +520,27 @@ pub async fn base_request(
                                 if value.starts_with("$.res.header.") {
                                     let header = value.replace("$.res.header.", "");
                                     if let Some(header_val) = header_hashmap.get(&header) {
-                                        exports_map.lock().unwrap().insert(key.to_string(), Value::String(header_val.join("")));
+                                        exports_map.lock().unwrap().insert(
+                                            key.to_string(),
+                                            Value::String(header_val.join("")),
+                                        );
                                     }
                                     continue;
                                 }
                                 if value.starts_with("$.res.status.") {
-                                    exports_map.lock().unwrap().insert(key.to_string(), Value::Number(status_code.into()));
+                                    exports_map
+                                        .lock()
+                                        .unwrap()
+                                        .insert(key.to_string(), Value::Number(status_code.into()));
                                     continue;
                                 }
                                 let json_bod = serde_json::json!(assert_object);
                                 if let Ok(v) = select(&json_bod, value) {
                                     if let Some(evaled) = v.first() {
-                                        exports_map.lock().unwrap().insert(key.to_string(), (*evaled).clone());
+                                        exports_map
+                                            .lock()
+                                            .unwrap()
+                                            .insert(key.to_string(), (*evaled).clone());
                                     }
                                 }
                             }
@@ -589,14 +610,20 @@ fn format_url(
 fn get_vars(expr: &str) -> Vec<String> {
     let regex_pattern = r#"\{\{([a-zA-Z0-9_]+)\}\}"#;
     let regex = Regex::new(regex_pattern).unwrap();
-    regex.find_iter(expr).map(|v| v.as_str().to_string()).collect()
+    regex
+        .find_iter(expr)
+        .map(|v| v.as_str().to_string())
+        .collect()
 }
 
 /// Finds environment variable patterns of the form $.env.VAR in a string.
 fn get_env_variable_paths(val: &String) -> Vec<String> {
     let regex_pattern = r#"\$\.(env\.[A-Za-z_][A-Za-z0-9_]*)"#;
     let regex = Regex::new(regex_pattern).unwrap();
-    regex.find_iter(val).map(|v| v.as_str().to_string()).collect()
+    regex
+        .find_iter(val)
+        .map(|v| v.as_str().to_string())
+        .collect()
 }
 
 /// Replaces variable placeholders in a string using the shared exports_map.
@@ -686,7 +713,10 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
             }
             Err(err) => {
                 return Err(AssertionError {
-                    advice: Some(format!("Could not evaluate jsonpath: {}, error: {}", path, err)),
+                    advice: Some(format!(
+                        "Could not evaluate jsonpath: {}, error: {}",
+                        path, err
+                    )),
                     src: NamedSource::new(&*ctx.file, expr.clone()),
                     bad_bit: (0, 4).into(),
                 });
@@ -704,7 +734,10 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
 
 /// Finds all JSONPath expressions in a string.
 fn find_all_jsonpaths(input: &String) -> Vec<&str> {
-    input.split_whitespace().filter(|x| x.starts_with("$.resp")).collect()
+    input
+        .split_whitespace()
+        .filter(|x| x.starts_with("$.resp"))
+        .collect()
 }
 
 // -----------------------------------------------------------------------------
@@ -737,7 +770,10 @@ fn evaluate_value<'a, T: Clone + 'static>(
         Ok(v) => v,
         Err(err) => {
             return Err(AssertionError {
-                advice: Some(format!("Could not resolve jsonpath: {}, error: {}", expr, err)),
+                advice: Some(format!(
+                    "Could not resolve jsonpath: {}, error: {}",
+                    expr, err
+                )),
                 src: NamedSource::new(&*ctx.file, expr.clone()),
                 bad_bit: (0, 4).into(),
             });
@@ -760,10 +796,15 @@ fn evaluate_value<'a, T: Clone + 'static>(
         MultiValueAssertionStrategy::AnyCanMatch => false,
     };
     for (idx, val) in selected_result.iter().enumerate() {
-        let pass = check_value_type(val, base_type, &date_format, expr, &ctx).map_err(|mut e| {
-            e.advice = Some(format!("At match index {}: {}", idx, e.advice.unwrap_or_default()));
-            e
-        })?;
+        let pass =
+            check_value_type(val, base_type, &date_format, expr, &ctx).map_err(|mut e| {
+                e.advice = Some(format!(
+                    "At match index {}: {}",
+                    idx,
+                    e.advice.unwrap_or_default()
+                ));
+                e
+            })?;
         match strategy {
             MultiValueAssertionStrategy::AllMustMatch => {
                 if !pass {
@@ -821,28 +862,28 @@ fn check_value_type(
                     _ => Ok(false),
                 }
             }
-        },
+        }
         Value::Number(_) => {
             if base_type == "num" || base_type == "number" {
                 Ok(true)
             } else {
                 Ok(false)
             }
-        },
+        }
         Value::Bool(_) => {
             if base_type == "bool" {
                 Ok(true)
             } else {
                 Ok(false)
             }
-        },
+        }
         Value::Null => {
             if base_type == "null" {
                 Ok(true)
             } else {
                 Ok(false)
             }
-        },
+        }
         _ => Ok(false),
     }
 }
@@ -878,19 +919,25 @@ fn evaluate_funcs<T: Clone + 'static>(
                 jsonpath,
                 err
             );
-            return Ok((fallback_path_check(jsonpath, &target_value, assert_type), expr.to_string()));
+            return Ok((
+                fallback_path_check(jsonpath, &target_value, assert_type),
+                expr.to_string(),
+            ));
         }
     };
     if selected_result.is_empty() {
-        return Ok((fallback_path_check(jsonpath, &target_value, assert_type), expr.to_string()));
+        return Ok((
+            fallback_path_check(jsonpath, &target_value, assert_type),
+            expr.to_string(),
+        ));
     }
     let overall = match strategy {
-        MultiValueAssertionStrategy::AllMustMatch => {
-            selected_result.iter().all(|val| funcs_check_one(val, &target_value, assert_type))
-        }
-        MultiValueAssertionStrategy::AnyCanMatch => {
-            selected_result.iter().any(|val| funcs_check_one(val, &target_value, assert_type))
-        }
+        MultiValueAssertionStrategy::AllMustMatch => selected_result
+            .iter()
+            .all(|val| funcs_check_one(val, &target_value, assert_type)),
+        MultiValueAssertionStrategy::AnyCanMatch => selected_result
+            .iter()
+            .any(|val| funcs_check_one(val, &target_value, assert_type)),
     };
     Ok((overall, expr.to_string()))
 }
@@ -956,18 +1003,12 @@ async fn check_assertions(
                 evaluate_expressions::<bool>(ctx.clone(), expr, &json_body, outputs)
                     .map(|(e, _)| ("OK ", e, expr.clone(), ""))
             }
-            Assert::IsArray(expr) => {
-                evaluate_value::<bool>(ctx.clone(), expr, &json_body, "array")
-                    .map(|(e, _)| ("ARRAY ", e, expr.clone(), ""))
-            }
-            Assert::IsEmpty(expr) => {
-                evaluate_value::<bool>(ctx.clone(), expr, &json_body, "empty")
-                    .map(|(e, _)| ("EMPTY ", e, expr.clone(), ""))
-            }
-            Assert::IsString(expr) => {
-                evaluate_value::<bool>(ctx.clone(), expr, &json_body, "str")
-                    .map(|(e, _)| ("STRING ", e, expr.clone(), ""))
-            }
+            Assert::IsArray(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "array")
+                .map(|(e, _)| ("ARRAY ", e, expr.clone(), "")),
+            Assert::IsEmpty(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "empty")
+                .map(|(e, _)| ("EMPTY ", e, expr.clone(), "")),
+            Assert::IsString(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "str")
+                .map(|(e, _)| ("STRING ", e, expr.clone(), "")),
             Assert::IsStringAll(expr) => {
                 evaluate_value::<bool>(ctx.clone(), expr, &json_body, "strAll")
                     .map(|(e, _)| ("STRING ALL ", e, expr.clone(), ""))
@@ -992,18 +1033,12 @@ async fn check_assertions(
                 evaluate_value::<bool>(ctx.clone(), expr, &json_body, "bool")
                     .map(|(e, _)| ("BOOLEAN ", e, expr.clone(), ""))
             }
-            Assert::IsNull(expr) => {
-                evaluate_value::<bool>(ctx.clone(), expr, &json_body, "null")
-                    .map(|(e, _)| ("NULL ", e, expr.clone(), ""))
-            }
-            Assert::Exists(expr) => {
-                evaluate_value::<bool>(ctx.clone(), expr, &json_body, "exists")
-                    .map(|(e, _)| ("EXISTS ", e, expr.clone(), ""))
-            }
-            Assert::IsDate(expr) => {
-                evaluate_value::<bool>(ctx.clone(), expr, &json_body, "date")
-                    .map(|(e, _)| ("DATE ", e, expr.clone(), ""))
-            }
+            Assert::IsNull(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "null")
+                .map(|(e, _)| ("NULL ", e, expr.clone(), "")),
+            Assert::Exists(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "exists")
+                .map(|(e, _)| ("EXISTS ", e, expr.clone(), "")),
+            Assert::IsDate(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "date")
+                .map(|(e, _)| ("DATE ", e, expr.clone(), "")),
             Assert::NotEmpty(expr) => {
                 evaluate_value::<bool>(ctx.clone(), expr, &json_body, "notEmpty")
                     .map(|(e, _)| ("NOT EMPTY ", e, expr.clone(), ""))

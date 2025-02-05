@@ -31,11 +31,9 @@ async fn main() {
         None | Some(Commands::App {}) => {
             println!("App mode not implemented. Use the 'test' command to run tests.");
         }
-        Some(Commands::Test { file }) => {
-            cli(file, &cli_instance.filter, &cli_instance.output)
-                .await
-                .unwrap()
-        }
+        Some(Commands::Test { file }) => cli(file, &cli_instance.filter, &cli_instance.output)
+            .await
+            .unwrap(),
     }
 }
 
@@ -97,7 +95,6 @@ fn find_tk_yaml_files(dir: &Path) -> Vec<PathBuf> {
     result
 }
 
-
 fn output_results(results: Vec<base_request::RequestResult>, output: &str) {
     match output {
         "json" => {
@@ -108,8 +105,8 @@ fn output_results(results: Vec<base_request::RequestResult>, output: &str) {
                     println!("{}", colored_str);
                 }
                 std::result::Result::Err(_) => {
-                    let json = serde_json::to_string_pretty(&results)
-                        .unwrap_or_else(|_| "{}".into());
+                    let json =
+                        serde_json::to_string_pretty(&results).unwrap_or_else(|_| "{}".into());
                     println!("{}", json);
                 }
             }

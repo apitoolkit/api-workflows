@@ -1,7 +1,7 @@
 // src/lib.rs
 
 // Re-export core APIs for users of the crate.
-pub use base_request::{run, run_json, ConfigVariable, TestContext};
+pub use base_request::{ConfigVariable, TestContext, run, run_json};
 
 mod base_cli;
 mod base_request;
@@ -30,8 +30,8 @@ pub extern "C" fn haskell_binding(
 ) -> *mut c_char {
     // Validate that none of the incoming pointers are null.
     if content.is_null() || collection_id.is_null() || local_vars.is_null() {
-        let err = CString::new("{\"error\": \"Null pointer passed in.\"}")
-            .expect("CString::new failed");
+        let err =
+            CString::new("{\"error\": \"Null pointer passed in.\"}").expect("CString::new failed");
         return err.into_raw();
     }
 
