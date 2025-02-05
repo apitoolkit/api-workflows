@@ -10,17 +10,27 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
 
-    /// Sets the log level to be used. Eg trace, debug, warn, info, error
-    #[arg(short, long, default_value = "info")]
+    /// Sets the log level (trace, debug, info, warn, error)
+    #[arg(short, long, global = true, default_value = "info")]
     pub log_level: String,
+
+    /// Optional filter to only run tests whose title contains this substring.
+    #[arg(short = 'q', long, global = true)]
+    pub filter: Option<String>,
+
+    /// Output format: plain or json (for CI systems)
+    #[arg(short, long, global = true, default_value = "plain")]
+    pub output: String,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Run tests from a YAML test configuration file.
     Test {
-        /// Sets the YAML test configuration file
+        /// Path to the YAML test configuration file.
         #[arg(short, long)]
         file: Option<PathBuf>,
     },
+    /// Run the application mode (not implemented yet).
     App {},
 }

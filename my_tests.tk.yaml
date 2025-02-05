@@ -1,0 +1,12 @@
+---
+# Test pre– and post–request hooks that modify the request/response.
+- title: "Test: Hooks Modify Data"
+  GET: "https://httpbin.org/get"
+  # dump: true
+  # Pre-request hook: modify the URL by appending a query parameter.
+  pre_request_hook: "_.req.raw = _.req.raw + \"?hooked=true\"; _.req.raw"
+  # Post-response hook: remove a header from the response JSON.
+  post_response_hook: "_.resp.headers = _.resp.headers.remove(\"set-cookie\"); \"Header filtered\""
+  asserts:
+    - ok: "$.resp.status == 200"
+    - exists: "$.resp.raw"
