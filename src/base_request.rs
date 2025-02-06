@@ -504,7 +504,8 @@ pub async fn base_request(
                             );
                             step_result.step_log.push_str(&dump_message);
                             step_result.step_log.push('\n');
-                            log::info!(target: "testkit", "{}", dump_message);                        }
+                            log::info!(target: "testkit", "{}", dump_message);
+                        }
                         let assert_results = check_assertions(
                             iter_ctx.clone(),
                             &test_item.asserts.clone().unwrap_or_default(),
