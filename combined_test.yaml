@@ -2,7 +2,7 @@
 # Step 1: Simple GET and basic assertions.
 - title: "Step 1 - Simple GET and Assertions"
   GET: "https://httpbin.org/get"
-  dump: true
+  dump: false
   asserts:
     # Assert that the status is 200.
     - ok: "$.resp.status == 200"
@@ -16,7 +16,7 @@
 # Step 2: Multi-match assertions with numbers.
 - title: "Step 2 - Multi-match with Numbers"
   GET: "https://jsonplaceholder.typicode.com/posts"
-  dump: true
+  dump: false
   asserts:
     # Ensure the request succeeded.
     - ok: "$.resp.status == 200"
@@ -32,7 +32,7 @@
 # Step 3: Edge Case – Invalid JSONPath.
 - title: "Step 3 - Edge Case: Invalid JSONPath"
   GET: "https://httpbin.org/get"
-  dump: true
+  dump: false
   asserts:
     # This JSONPath does not exist and should trigger an error.
     - ok: "$.resp.nonexistent == 0"
@@ -48,7 +48,7 @@
   pre_request_hook: "let msg = 'Pre-hook executed'; msg"
   # Post-response hook: Checks the status code and returns a message.
   post_response_hook: "let status = _.resp.status; if (status == 200) { 'Post-hook: OK' } else { 'Post-hook: Fail' }"
-  dump: true
+  dump: false
   asserts:
     # Verify that the status code is 200.
     - ok: "$.resp.status == 200"
