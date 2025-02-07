@@ -1,0 +1,5 @@
+- title: "Browser: Open Google"
+  GET: ""        # This key satisfies the flattened HttpMethod (default is GET)
+  browser:
+    action: "navigate"
+    url: "https://www.google.com"

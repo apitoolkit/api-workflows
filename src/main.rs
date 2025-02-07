@@ -1,7 +1,10 @@
-pub mod base_cli;
-pub mod base_request;
+// src/main.rs
 
-use anyhow::Ok;
+mod base_browser;
+mod base_request;
+mod base_cli;
+
+use anyhow::Result;
 use base_cli::{Cli, Commands};
 use base_request::TestContext;
 use clap::Parser;
@@ -10,13 +13,13 @@ use log::LevelFilter;
 use std::{
     fs,
     path::{Path, PathBuf},
-    str::FromStr,
+    str::FromStr, // For LevelFilter::from_str
     sync::Arc,
 };
 use walkdir::WalkDir;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     dotenv().ok();
     let cli_instance = Cli::parse();
 
@@ -27,21 +30,25 @@ async fn main() {
         .filter_level(LevelFilter::from_str(&cli_instance.log_level).unwrap_or(LevelFilter::Info))
         .init();
 
-    match cli_instance.command {
+    match &cli_instance.command {
         None | Some(Commands::App {}) => {
-            println!("App mode not implemented. Use the 'test' command to run tests.");
+            println!("App mode not implemented. Use the 'test' or 'new' command.");
         }
-        Some(Commands::Test { file }) => cli(file, &cli_instance.filter, &cli_instance.output)
-            .await
-            .unwrap(),
+        Some(Commands::Test { file }) => {
+            cli_run_test(file.clone(), &cli_instance.filter, &cli_instance.output).await?;
+        }
+        Some(Commands::New { file, test_type }) => {
+            create_boilerplate(file.clone(), test_type)?;
+        }
     }
+    Ok(())
 }
 
-async fn cli(
+async fn cli_run_test(
     file_op: Option<PathBuf>,
     _filter: &Option<String>,
     output: &str,
-) -> Result<(), anyhow::Error> {
+) -> Result<()> {
     if let Some(file) = file_op {
         let content = fs::read_to_string(file.clone())?;
         let ctx = TestContext {
@@ -50,11 +57,8 @@ async fn cli(
             should_log: true,
             ..Default::default()
         };
-        let results = base_request::run(ctx, content)
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
+        let results = base_request::run(ctx, content).await?;
         output_results(results, output);
-        Ok(())
     } else {
         let files = find_tk_yaml_files(Path::new("."));
         for file in files {
@@ -65,13 +69,56 @@ async fn cli(
                 should_log: true,
                 ..Default::default()
             };
-            let results = base_request::run(ctx, content)
-                .await
-                .map_err(|e| anyhow::anyhow!(e))?;
+            let results = base_request::run(ctx, content).await?;
             output_results(results, output);
         }
-        Ok(())
     }
+    Ok(())
+}
+
+fn create_boilerplate(file_op: Option<PathBuf>, test_type: &str) -> Result<()> {
+    let path = match file_op {
+        Some(path) => path,
+        None => PathBuf::from("boilerplate_test.yaml"),
+    };
+
+    let content = match test_type {
+        "api" => {
+            r#"
+- title: "API: GET Example"
+  request:
+    GET: "https://jsonplaceholder.typicode.com/posts/1"
+  asserts:
+    - ok: "$.resp.status == 200"
+"#
+        }
+        "browser" => {
+            r#"
+- title: "Browser: Open Home Page"
+  browser:
+    action: "navigate"
+    url: "https://example.com"
+"#
+        }
+        _ => {
+            r#"
+- title: "API: GET Example"
+  request:
+    GET: "https://jsonplaceholder.typicode.com/posts/1"
+  asserts:
+    - ok: "$.resp.status == 200"
+
+- title: "Browser: Open Home Page"
+  browser:
+    action: "navigate"
+    url: "https://example.com"
+"#
+        }
+    };
+
+    fs::write(&path, content.trim_start())?;
+    println!("Boilerplate test file created at: {:?}", path);
+    Ok(())
 }
 
 fn find_tk_yaml_files(dir: &Path) -> Vec<PathBuf> {
@@ -98,21 +145,13 @@ fn find_tk_yaml_files(dir: &Path) -> Vec<PathBuf> {
 fn output_results(results: Vec<base_request::RequestResult>, output: &str) {
     match output {
         "json" => {
-            // Obtain the colored JSON string.
-            let colored_result = colored_json::to_colored_json_auto(&results);
-            match colored_result {
-                std::result::Result::Ok(colored_str) => {
-                    println!("{}", colored_str);
-                }
-                std::result::Result::Err(_) => {
-                    let json =
-                        serde_json::to_string_pretty(&results).unwrap_or_else(|_| "{}".into());
-                    println!("{}", json);
-                }
+            if let Ok(colored_str) = colored_json::to_colored_json_auto(&results) {
+                println!("{}", colored_str);
+            } else if let Ok(json) = serde_json::to_string_pretty(&results) {
+                println!("{}", json);
             }
         }
         _ => {
-            // Plain text output using Debug formatting.
             for res in results {
                 println!("{:#?}", res);
             }

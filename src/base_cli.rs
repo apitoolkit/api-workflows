@@ -1,11 +1,16 @@
+// src/base_cli.rs
+
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "testkit")]
-#[command(author = "APIToolkit. <hello@apitoolkit.io>")]
-#[command(version = "1.0")]
-#[command(about = "Manually and Automated testing starting with APIs", long_about = None)]
+#[command(
+    name = "testkit",
+    author = "APIToolkit. <hello@apitoolkit.io>",
+    version = "1.0",
+    about = "Manually and Automated testing starting with APIs and Browser automation",
+    long_about = None
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -30,6 +35,15 @@ pub enum Commands {
         /// Path to the YAML test configuration file.
         #[arg(short, long)]
         file: Option<PathBuf>,
+    },
+    /// Create a new boilerplate test file.
+    New {
+        /// Path where the boilerplate file should be created (default: boilerplate_test.yaml).
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+        /// Type of test file to create: "api", "browser", or "both" (default: both).
+        #[arg(short, long, default_value = "both")]
+        test_type: String,
     },
     /// Run the application mode (not implemented yet).
     App {},
