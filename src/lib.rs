@@ -1,37 +1,74 @@
-use base_request::{ConfigVariable, RequestResult, TestContext};
-use libc::c_char;
-use std::ffi::CStr;
+// src/lib.rs
 
-pub mod base_cli;
+// Declare modules in the order needed by sibling modules.
+pub mod base_browser;
 pub mod base_request;
+pub mod base_cli;
+
+// Optionally re-export items:
+pub use base_request::{ConfigVariable, TestContext, run, run_json};
+
+use libc::c_char;
+use std::ffi::{CStr, CString};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 #[no_mangle]
 pub extern "C" fn haskell_binding(
     content: *const c_char,
     collection_id: *const c_char,
     local_vars: *const c_char,
-) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
-    let c_str: &CStr = unsafe { CStr::from_ptr(content) };
-    let str_slice: &str = c_str.to_str().unwrap();
-    let cont_rs: String = str_slice.to_owned();
-    let ctx = TestContext {
-        file: "haskell_binding".into(),
-        file_source: cont_rs.clone(),
+) -> *mut c_char {
+    if content.is_null() || collection_id.is_null() || local_vars.is_null() {
+        let err = CString::new("{\"error\": \"Null pointer passed in.\"}")
+            .expect("CString::new failed");
+        return err.into_raw();
+    }
+
+    let cont_rs = unsafe { CStr::from_ptr(content) }
+        .to_str()
+        .unwrap_or_default()
+        .to_owned();
+
+    let col_path: Option<PathBuf> = unsafe { CStr::from_ptr(collection_id) }
+        .to_str()
+        .ok()
+        .map(|s| PathBuf::from(s));
+
+    let local_vars_str = unsafe { CStr::from_ptr(local_vars) }
+        .to_str()
+        .unwrap_or("{}");
+
+    let local_vars_map: Vec<base_request::ConfigVariable> =
+        serde_json::from_str(local_vars_str).unwrap_or_default();
+
+    let ctx = base_request::TestContext {
+        file: Arc::new("haskell_binding".to_string()),
+        file_source: Arc::new(cont_rs.clone()),
         should_log: false,
         ..Default::default()
     };
-    let col = unsafe { CStr::from_ptr(collection_id) };
-    let col_str = Some(col.to_str().unwrap().to_owned());
 
-    let local_vars_str = unsafe { CStr::from_ptr(local_vars) };
-    let local_vars_str = local_vars_str.to_str().unwrap();
-    let local_vars_map: Vec<ConfigVariable> =
-        serde_json::from_str(local_vars_str).unwrap_or_default();
-
-    let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
-        base_request::run_json(ctx, cont_rs, col_str, Some(local_vars_map)).await
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+    let result = rt.block_on(async {
+        base_request::run_json(ctx, cont_rs, col_path, Some(local_vars_map)).await
     });
-    println!("haskell_binding result: {:?}", result);
 
-    return result;
+    let output_json = match result {
+        Ok(res) => serde_json::to_string(&res)
+            .unwrap_or_else(|e| format!("{{\"error\": \"Serialization error: {}\"}}", e)),
+        Err(e) => format!("{{\"error\": \"{}\"}}", e),
+    };
+
+    CString::new(output_json)
+        .unwrap_or_else(|_| CString::new("{\"error\": \"CString conversion failed\"}").unwrap())
+        .into_raw()
+}
+
+#[no_mangle]
+pub extern "C" fn free_haskell_binding_result(s: *mut c_char) {
+    if s.is_null() {
+        return;
+    }
+    let _ = unsafe { CString::from_raw(s) };
 }

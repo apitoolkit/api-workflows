@@ -25,15 +25,19 @@ jsonpath = "0.1.1"
 regex = "1.8.4"
 dotenv = "0.15.0"
 libc = "0.2"
+lazy_static = "1.4"
 anyhow = "1.0"
+glob = "0.3"
 miette = { version = "7.2.0", features = ["fancy"] }
-thiserror = "1.0.43"
+thiserror = "2.0.11"
 serde_with = "3.0.0"
 colored_json = "5"
 chrono = "0.4.26"
 walkdir = "2.3.3"
-# core-foundation = {git="https://github.com/servo/core-foundation-rs", rev="9effb788767458ad639ce36229cc07fd3b1dc7ba"}
+chromiumoxide = "0.7"
+futures-util = "0.3"
 
+# core-foundation = {git="https://github.com/servo/core-foundation-rs", rev="9effb788767458ad639ce36229cc07fd3b1dc7ba"}
 [dev-dependencies]
 httpmock = "0.7"
 testing_logger = "0.1.1"
